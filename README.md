@@ -26,7 +26,7 @@
 | Elixir     | Daniel Araujo Azevedo<br>Fábio Hudson Gomes de Souza<br>Rafael Duarte da Silva de Brito        | FIXME |
 | F#         | Arthus Santos Aquino<br>João Ricardo Fernandes de Almeida                                      | FIXME |
 | Go         | João Victor Marques Campos<br>Rio Ribeiro da Silva<br>Wheverton Cruz da Silva Filho            | FIXME |
-| Java       | Guilherme da Silva Cruz<br>José Vine Nunes Martins Araújo<br>Maria Clara Batista Viana Silva   | FIXME |
+| Java       | Guilherme da Silva Cruz<br>José Vine Nunes Martins Araújo<br>Maria Clara Batista Viana Silva   | https://github.com/cruzguilherme1-rpg/Fork-atividade-avaliativa_03_java.git |
 | Kotlin     | Ana Letícia Vidal de Oliveira<br>Iago Vinícius Souza de Sales<br>Valentine Varela              | FIXME |
 | Lua        | Andre Medeiros Silva<br>Denju Gabriel da Silva Lira<br>Lucas Gabryel Silva de Holanda          | FIXME |
 | Rust       | Julia Rafaelly Siqueira de Lima<br>Lidia Rebeka da Silva Fernandes<br>Lyonara da Silva Camelo  | FIXME |
