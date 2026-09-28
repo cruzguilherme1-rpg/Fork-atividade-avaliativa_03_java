@@ -1,23 +1,23 @@
-import java.util.ArrayList; //importado para criar e manipular listas dinâmicas
-import java.util.List;  //importado para criar e manipular listas dinâmicas
-import java.util.Random; //classe para gerar números aleatórios
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
 
-public class sequencial {
+public class Sequencial {
 
     public static List<Integer> produzirDados(){
         
-        List<Integer> dados = new ArrayList<>();    //criação de nova lista chamada 'dados'
-        Random random = new Random();   //gerador de números aleatórios chamado 'random'
+        List<Integer> dados = new ArrayList<>();
+        Random random = new Random();
 
-        for (int i = 0; i < 100; i++){  //laço para a criação da lista 
-            dados.add(random.nextInt(111)); //geração e adição do número aleatório entre 0 e 110 na lista
+        for (int i = 0; i < 100; i++) {
+            dados.add(random.nextInt(111));
         }
-        return dados;   //retorno da lista completa
+        return dados;
     }
 
-    public static void consumirDados(List<Integer> dados) {   //recebimento da lista dados
-        int resultado = 0;  //variável que acumulará a soma dos números da lista
-        for (int num : dados){  //laço for-each para ser lido cada número da lista
+    public static void consumirDados(List<Integer> dados) {
+        int resultado = 0;
+        for (int num : dados) {
             resultado += num;
         }
 
@@ -26,13 +26,13 @@ public class sequencial {
     public static void principal(){
         System.out.println("Iniciou");
 
-        List<Integer> dados = produzirDados();  //faz a execução da produção dos dados e armazenamento na variável
-        consumirDados(dados);   //recebe a lista de dados e calcula a soma dos inteiros
+        List<Integer> dados = produzirDados();
+        consumirDados(dados);
 
         System.out.println("Finalizou");
     }
 
-    public static void main(String[] args){ //onde entra a aplicação e chama o método principal()
+    public static void main(String[] args) {
         principal();
     }
 }
