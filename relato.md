@@ -6,6 +6,8 @@ Este relato faz parte do processo avaliativo da disciplina de **Sistemas Operac
 
 O objetivo principal deste trabalho é relatar e demonstrar as implementações de **comunicação entre tarefas** na linguagem Java.
 
+Os vídeos referentes à execução dos códigos de exemplo podem ser encontrados neste link: https://drive.google.com/drive/folders/1W9NS54mY3RVc7DCYud6aS2SnwZFp1TAj?usp=drive_link
+
 **👥 Equipe de Desenvolvimento**
 
 - Guilherme da Silva Cruz
