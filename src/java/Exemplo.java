@@ -3,4 +3,7 @@ public class Exemplo {
         System.out.println("Dados produzidos");
     }
     
+    public static void main(String[] args) {
+        produzirDados();
+    }
 }
