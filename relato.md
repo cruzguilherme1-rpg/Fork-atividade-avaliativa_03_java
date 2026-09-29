@@ -33,25 +33,32 @@ A comunicação entre tarefas no mesmo processo ocorre através de **Threads**�
 **💻 Código Implementado:**
 
 Java
-```
+```java
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
 public class ProdutorConsumidor {
+    
     // Lista compartilhada entre as Threads na memória do mesmo processo
     private static List<Integer> dados = new ArrayList<>();
     
-    public static List<Integer> produzirDados(){
-        System.out.println("# produzir - iniciado");
+    // Gera os 100 números aleatórios e atribui a lista à variável estática 'dados'
+    public static List<Integer> produzirDados() {
+        System.out.println("# Produzir - iniciado");
         
-        List<Integer> novosDados = new ArrayList<>();
-        Random random = new Random();
+        // Nova lista vazia na memória para armazenar números
+        List<Integer> novosDados = new ArrayList<>(); 
         
-        for (int i = 0; i < 100; i++){
-            novosDados.add(random.nextInt(111));
+        // Gerador de números aleatórios
+        Random random = new Random(); 
+        
+        for (int i = 0; i < 100; i++) {
+            // Geração e adição do número aleatório entre 0 e 110 na lista
+            novosDados.add(random.nextInt(111)); 
         }
         
+        // Atualiza a referência da lista compartilhada
         dados = novosDados;
         
         System.out.println("# produzir " + dados);
@@ -59,39 +66,43 @@ public class ProdutorConsumidor {
         return dados;
     }
     
-    public static void consumirDados(){
-        System.out.println("### consumir - iniciado");
-        System.out.println("### dados -> " + dados);
+    public static void consumirDados() {
+        System.out.println("### Consumir - iniciado");
+        System.out.println("### Dados -> " + dados);
         
+        // Acesso direto da variável compartilhada 'dados' para acumular a soma
         int resultado = 0;
         for (int num : dados) {
             resultado += num;
         }
         
-        System.out.println("### resultado -> " + resultado);
-        System.out.println("### consumir - terminado");
+        System.out.println("### Resultado -> " + resultado);
+        System.out.println("### Consumir - terminado");
     }
     
     public static void principal() {
         System.out.println("iniciou");
         
-        // Criação das Threads associadas aos métodos da classe
+        // Criação das Threads usando a sintaxe (Classe::metodo) para passar os métodos estáticos como tarefas executáveis
         Thread threadProdutor = new Thread(ProdutorConsumidor::produzirDados);
         Thread threadConsumidor = new Thread(ProdutorConsumidor::consumirDados);
         
-        // Sincronização explícita do fluxo com join()
+        // Inicialização da thread do produtor
         threadProdutor.start();
         try {
-            threadProdutor.join();
-        } catch (InterruptedException e){
+            // Faz com que a thread principal espere a threadProdutor terminar antes de avançar
+            threadProdutor.join(); 
+        } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             System.err.println("Thread interrompida: " + e.getMessage());
         }
 
+        // Inicialização da thread do consumidor
         threadConsumidor.start();
         try {
+            // Espera a thread do consumidor acabar antes de prosseguir
             threadConsumidor.join();
-        } catch (InterruptedException e){
+        } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             System.err.println("Thread interrompida: " + e.getMessage());
         }
@@ -99,7 +110,7 @@ public class ProdutorConsumidor {
         System.out.println("Finalizou");
     }
 
-    public static void main(String[] args){
+    public static void main(String[] args) {
         principal();
     }
 }
@@ -110,7 +121,7 @@ public class ProdutorConsumidor {
 O código foi compilado e executado utilizando o terminal com os comandos do Java via contêiner Docker:
 
 Bash
-```
+```bash
 javac ProdutorConsumidor.java
 java ProdutorConsumidor
 ```
@@ -118,7 +129,7 @@ Exemplo de saída do terminal:
 
 Terminal
 
-```
+```text
 iniciou
 # produzir - iniciado
 # produzir [102, 45, 12, 88, 3, 91, 55, ...]
@@ -149,43 +160,62 @@ Nesta etapa, o padrão é adaptado para executar a produção de dados de forma 
 **💻 Código Implementado:**
 
 Java
-```
+```java
+// Importado para criar e manipular listas dinâmicas
 import java.util.ArrayList;
+// Interface para coleções do tipo lista
 import java.util.List;
+// Classe para gerar números aleatórios
 import java.util.Random;
 
 public class sequencial {
 
-    public static List<Integer> produzirDados(){
+    public static List<Integer> produzirDados() {
+        
+        // Criação de nova lista chamada 'dados'
         List<Integer> dados = new ArrayList<>();
+        
+        // Gerador de números aleatórios chamado 'random'
         Random random = new Random();
 
-        for (int i = 0; i < 100; i++){
+        // Laço para a criação e preenchimento da lista
+        for (int i = 0; i < 100; i++) {
+            // Geração e adição do número aleatório entre 0 e 110 na lista
             dados.add(random.nextInt(111));
         }
-
+        
+        // Retorno da lista completa
         return dados;
     }
 
+    // Recebimento da lista dados como parâmetro
     public static void consumirDados(List<Integer> dados) {
+        
+        // Variável que acumulará a soma dos números da lista
         int resultado = 0;
-        for (int num : dados){
+        
+        // Laço for-each para ler cada número da lista
+        for (int num : dados) {
             resultado += num;
         }
 
-        System.out.println("recebeu -> " + resultado);
+        System.out.println("Recebeu -> " + resultado);
     }
 
-    public static void principal(){
-        System.out.println("iniciou");
+    public static void principal() {
+        System.out.println("Iniciou");
 
+        // Executa a produção dos dados e armazena o resultado na variável
         List<Integer> dados = produzirDados();
+        
+        // Recebe a lista de dados e calcula a soma dos inteiros
         consumirDados(dados);
 
-        System.out.println("finalizou");
+        System.out.println("Finalizou");
     }
 
-    public static void main(String[] args){
+    // Ponto de entrada da aplicação que chama o método principal()
+    public static void main(String[] args) {
         principal();
     }
 }
@@ -196,17 +226,17 @@ public class sequencial {
 O código foi compilado e executado diretamente no terminal via Docker:
 
 Bash
-```
+```bash
 javac sequencial.java
 java sequencial
 ```
 Exemplo de saída do terminal:
 Terminal
-````
+```text
 iniciou
 recebeu -> 5621
 finalizou
-````
+```
 
 **⚠️ Desafios Encontrados e Soluções:**
 
@@ -221,7 +251,7 @@ Para simular o esqueleto de tarefas modulares prontas para execução em nós de
 **💻 Código Implementado:**
 
 Java
-```
+```java
 public class Exemplo {
     public static void produzirDados(){
         System.out.println("Dados produzidos");
@@ -238,13 +268,13 @@ public class Exemplo {
 A execução foi simulada em um ambiente totalmente isolado utilizando o **Docker**:
 
 Bash 
-```
+```bash
 docker build -t app-produtor .
 docker run --rm app-produtor
 ```
 Saída do terminal do contêiner:
 Terminal
-```
+```text
 Dados produzidos
 ```
 

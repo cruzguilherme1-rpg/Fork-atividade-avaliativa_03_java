@@ -7,7 +7,6 @@ public class ProdutorConsumidor{
     private static List<Integer> dados = new ArrayList<>();
     
     //gera os 100 números aleatórios mas a lista é atribuída na variável estática 'dados'
-    
     public static List<Integer> produzirDados(){
         System.out.println("# Produzir - iniciado");
         
