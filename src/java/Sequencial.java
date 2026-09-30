@@ -2,7 +2,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-public class sequencial {
+public class Sequencial {
 
     public static List<Integer> produzirDados(){
         
