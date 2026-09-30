@@ -170,7 +170,7 @@ import java.util.List;
 // Classe para gerar números aleatórios
 import java.util.Random;
 
-public class sequencial {
+public class Sequencial {
 
     public static List<Integer> produzirDados() {
         
