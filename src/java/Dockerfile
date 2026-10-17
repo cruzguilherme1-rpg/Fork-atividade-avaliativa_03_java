@@ -1,5 +1,5 @@
 FROM eclipse-temurin:17-jdk
 WORKDIR /app
-COPY Exemplo.java .
+COPY Produtor.java .
 RUN javac Exemplo.java
 CMD ["java", "Exemplo"]
