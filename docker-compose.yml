@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  produtor-host:
+    build: .
+    container_name: conteiner_produtor
+    command: java ProdutorServer
+    ports:
+      - "5000:5000"
+    networks:
+      - rede_ipc
+
+  consumidor-host:
+    build: .
+    container_name: conteiner_consumidor
+    command: java ConsumidorClient
+    environment:
+      - PRODUTOR_HOST=produtor-host
+    depends_on:
+      - produtor-host
+    networks:
+      - rede_ipc
+
+networks:
+  rede_ipc:
+    driver: bridge
