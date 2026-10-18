@@ -290,9 +290,15 @@ Entrada: Mais um teste
 
 **⚠️ Desafios Encontrados e Soluções:**
 
-1. **Escopo e Visibilidade de Dados:**
-   * **Problema:** A ausência de uma variável estática global exigiu uma forma segura de transferir a referência da lista entre os contextos de produção e consumo.
-   * **Solução:** Os dados foram encapsulados no retorno da função produzirDados() e repassados explicitamente como parâmetro de entrada no método consumirDados(dados).
+1. **Isolamento de Memória entre Processos/Contêineres:**
+   * **Problema:** Por estarem em processos e contêineres separados, o Produtor e o Consumidor não compartilham a mesma memória RAM (não podem usar objetos, instâncias ou variáveis compartilhadas).
+   * **Solução:** Redirecionamento da saída padrão (stdout) do Produtor para a entrada padrão (stdin) do Consumidor via Pipe de SO (docker run productor | docker run -i consumidor).
+2. **Perda da Entrada Padrão no Contêiner Consumidor:**
+   * **Problema:** Por padrão, o comando docker run roda sem manter o fluxo de entrada (stdin) aberto para receber dados externos de um pipe.
+   * **Solução:** O uso da flag -i (docker run -i consumidor), que mantém a entrada interativa aberta para ler o stream enviado pelo Produtor.
+3. **Bloqueio de Leitura (Gargalo de Leitura Única):**
+   * **Problema:** O Consumidor utiliza entrada.nextLine(), lendo apenas uma única linha. Se o Produtor emitisse múltiplas linhas ou streams contínuos, as linhas subsequentes seriam ignoradas.
+   * **Solução:** Usar um laço de repetição (while (entrada.hasNextLine())) para consumir continuamente até o encerramento da saída do Produtor.
 
 **🌐 3. Comunicação entre Tarefas em Computadores/Contêineres Diferentes (*Sockets TCP*)**
 
