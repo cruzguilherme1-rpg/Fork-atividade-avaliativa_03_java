@@ -1,0 +1,12 @@
+#para iniciar docker run -p 5000:5000 servidor-echo-java
+#para iniciar docker run --network="host" servidor-echo-java
+
+FROM eclipse-temurin:17-jdk
+
+WORKDIR /app
+
+COPY ServidorEcho.java .
+
+RUN javac ServidorEcho.java 
+
+CMD ["java", "ServidorEcho"]

@@ -1,0 +1,12 @@
+#para executar docker run --network="host" servidor-basico-java
+#para executar docker run -p 5000:5000 servidor-basico-java
+
+FROM eclipse-temurin:17-jdk
+
+WORKDIR /app
+
+COPY ServidorBasico.java .
+
+RUN javac ServidorBasico.java 
+
+CMD ["java", "ServidorBasico"]

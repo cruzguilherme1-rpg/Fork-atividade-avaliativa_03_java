@@ -1,0 +1,13 @@
+#para iniciar docker run -p 5000:5000 servidor-chat-java
+#para iniciar docker run --network="host" servidor-chat-java
+
+
+FROM eclipse-temurin:17-jdk
+
+WORKDIR /app
+
+COPY ServidorChat.java .
+
+RUN javac ServidorChat.java 
+
+CMD ["java", "ServidorChat"]
