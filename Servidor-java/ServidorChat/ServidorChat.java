@@ -9,21 +9,22 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public class ServidorChat {
-    private static final List<PrintWriter> clientes = new CopyOnWriteArrrayList<>();
+    private static final List<PrintWriter> clientes = new CopyOnWriteArrayList<>();
     private static final List<String> apelidos = new CopyOnWriteArrayList<>();
 
-    public static void main(String[] args){
+    public static void main(String[] args) {
         int porta = 5000;
 
         try (ServerSocket servidor = new ServerSocket(porta)) {
-            System.out.println("Servidor de chat iniciado em localhost: " + porta);
-            
+            System.out.println("Servidor de Chat iniciado em localhost:" + porta);
+
             while (true) {
-                Socket cliente = servidor.accept();
+                Socket clienteSocket = servidor.accept();
                 System.out.println("Conexão estabelecida com " + clienteSocket.getRemoteSocketAddress());
 
-                Thread threadCliente = new Thread(new ClienteHandler(clienteSocket));
-                threadCliente.start();
+                // Criar thread para gerenciar o novo cliente
+                Thread thread = new Thread(new ClientHandler(clienteSocket));
+                thread.start();
             }
         } catch (IOException e) {
             System.err.println("Erro no servidor: " + e.getMessage());
@@ -32,72 +33,72 @@ public class ServidorChat {
 
     // Envia mensagem para todos os clientes conectados (exceto o remetente)
     private static void broadcast(String mensagem, PrintWriter remetente) {
-        for (PrintWriter cliente : clientes) {
-            if (cliente != remetente) {
-                cliente.println(mensagem);
+        for (PrintWriter clienteOut : clientes) {
+            if (clienteOut != remetente) {
+                clienteOut.println(mensagem);
             }
         }
     }
 
-    // Handler responsável por cada cliente em uma thread separado
-    private static class ClienteHandler implement Runnable {
+    // Handler responsável por cada cliente em uma thread separada
+    private static class ClientHandler implements Runnable {
         private final Socket socket;
         private PrintWriter out;
         private BufferedReader in;
-        private String apelido
+        private String apelido;
 
-        public ClienteHandler(Socket socket) {
+        public ClientHandler(Socket socket) {
             this.socket = socket;
         }
 
         @Override
         public void run() {
             try {
-                out = new PrintWriter(socket.getOutputStream(), true, StrandartCharsets.UTF_8);
+                out = new PrintWriter(socket.getOutputStream(), true, StandardCharsets.UTF_8);
                 in = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
-            
-                // Solicita o apelido do cliente
+
+                // Solicitar apelido
                 out.println("APELIDO");
                 apelido = in.readLine();
 
                 if (apelido != null && !apelido.isEmpty()) {
-                    //Registrar cliente
-                    apelido.add(apelido);
+                    // Registrar cliente
+                    apelidos.add(apelido);
                     clientes.add(out);
 
                     System.out.println("Apelido do cliente: " + apelido);
                     broadcast(apelido + " entrou no chat!", out);
                     out.println("Conectado ao servidor!");
 
-                    //Loop para receber mensagens do cliente
+                    // Loop para receber mensagens do cliente
                     String mensagem;
                     while ((mensagem = in.readLine()) != null) {
                         broadcast(mensagem, out);
                     }
                 }
-            } catch (IoException e) {
-
+            } catch (IOException e) {
+                // Conexão perdida ou erro de leitura
             } finally {
                 desconectar();
             }
-    }  
+        }
 
-    private void desconectar() {
-        if (out != null) {
-            clientes.remove(out);
-        }
-        if (apelido != null) {
-            apelidos.remove(apelido);
-            broadcast(apelido + " saiu do chat!", out);
-            System.out.println(apelido + " desconectou");
-        }
-        try {
-            if (socket != null && !socket.isClosed()) {
-                socket.close();
+        private void desconectar() {
+            if (out != null) {
+                clientes.remove(out);
             }
-        } catch (IOException e) {
-            e.printStackTrace();
+            if (apelido != null) {
+                apelidos.remove(apelido);
+                broadcast(apelido + " saiu do chat!", out);
+                System.out.println(apelido + " desconectou");
+            }
+            try {
+                if (socket != null && !socket.isClosed()) {
+                    socket.close();
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
-}
-}
 }
