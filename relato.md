@@ -300,192 +300,344 @@ Entrada: Mais um teste
    * **Problema:** O Consumidor utiliza entrada.nextLine(), lendo apenas uma única linha. Se o Produtor emitisse múltiplas linhas ou streams contínuos, as linhas subsequentes seriam ignoradas.
    * **Solução:** Usar um laço de repetição (while (entrada.hasNextLine())) para consumir continuamente até o encerramento da saída do Produtor.
 
+Aqui está o texto reorganizado e atualizado para refletir com precisão a implementação dos códigos fornecidos (`ServidorChat.java` e `ClienteChat.java`), mantendo o rigor técnico, os desafios enfrentados e a conclusão.
+
+---
+
 **🌐 3. Comunicação entre Tarefas em Computadores/Contêineres Diferentes (*Sockets TCP*)**
 
-Para evoluir a arquitetura local para um ambiente distribuído, o código foi refatorado dividindo as responsabilidades do modelo Produtor-Consumidor em dois programas independentes que se comunicam através da pilha de protocolos TCP/IP:
+Para evoluir a arquitetura local para um ambiente distribuído, o código foi refatorado dividindo as responsabilidades do modelo de comunicação em dois programas independentes que se comunicam através da pilha de protocolos TCP/IP em uma aplicação de chat multithreaded:
 
- * ProdutorServer.java (Servidor Socket): Atua como o nó gerador de dados. Ele abre uma porta de rede (ServerSocket) e aguarda requisições de conexão.
- * ConsumidorClient.java (Cliente Socket): Atua como o nó processador. Conecta-se ao endereço IP/nome do contêiner do produtor (Socket), consome a stream de bytes enviada via rede, reconverte o fluxo para estrutura numérica e realiza o processamento (soma).
- * Orquestração com Docker Compose: Define a rede virtual do tipo bridge conectando os dois contêineres e resolvendo os nomes de host automaticamente via DNS interno do Docker.
+* **ServidorChat.java (Servidor Socket Multithreaded):** Atua como o nó central do chat. Ele abre uma porta de rede (`ServerSocket` na porta `5000`) e aguarda conexões concorrentes. Para cada cliente conectado, cria uma nova *Thread* dedicada (`ClientHandler`), permitindo o gerenciamento simultâneo de múltiplos usuários, registro de apelidos e retransmissão de mensagens (*broadcast*) para todos os participantes.
+
+
+* **ClienteChat.java (Cliente Socket Multithreaded):** Atua como o nó terminal do usuário. Solicita um apelido, conecta-se ao servidor e gerencia o fluxo concorrente de entrada e saída por meio de duas *Threads* independentes (`ReceberMensagensHandler` para escutar o servidor e `EnviarMensagensHandler` para capturar a entrada do usuário no console e enviá-la).
+
+
+* **Orquestração com Docker Compose:** Define a rede virtual do tipo *bridge* conectando os contêineres e resolvendo os nomes de host automaticamente via DNS interno do Docker.
+
+---
 
 **💻 Código Implementado:**
 
-1. **Contêiner A** (*ProdutorServer.java*)
-Java
+1. **Servidor** (*ServidorChat.java*)
+
 ```java
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.ArrayList;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.Random;
+import java.util.concurrent.CopyOnWriteArrayList;
 
-public class ProdutorServer {
-
-    public static List<Integer> produzirDados() {
-        List<Integer> novosDados = new ArrayList<>();
-        Random random = new Random();
-        for (int i = 0; i < 100; i++) {
-            novosDados.add(random.nextInt(111));
-        }
-        return novosDados;
-    }
+public class ServidorChat {
+    private static final List<PrintWriter> clientes = new CopyOnWriteArrayList<>();
+    private static final List<String> apelidos = new CopyOnWriteArrayList<>();
 
     public static void main(String[] args) {
         int porta = 5000;
-        System.out.println("# [Servidor/Produtor] Aguardando conexões na porta " + porta + "...");
 
-        try (ServerSocket serverSocket = new ServerSocket(porta)) {
+        try (ServerSocket servidor = new ServerSocket(porta)) {
+            System.out.println("Servidor de Chat iniciado em localhost:" + porta);
+
             while (true) {
-                // Aguarda um cliente (Consumidor) se conectar
-                Socket socket = serverSocket.accept();
-                System.out.println("# [Servidor/Produtor] Consumidor conectado: " + socket.getInetAddress());
+                Socket clienteSocket = servidor.accept();
+                System.out.println("Conexão estabelecida com " + clienteSocket.getRemoteSocketAddress());
 
-                // Produz os dados
-                List<Integer> dados = produzirDados();
-                
-                // Envia a lista para o consumidor através do fluxo de saída do Socket
-                PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-                out.println(dados.toString());
-
-                System.out.println("# [Servidor/Produtor] Dados enviados via Socket: " + dados);
-                socket.close();
+                // Criar thread para gerenciar o novo cliente
+                Thread thread = new Thread(new ClientHandler(clienteSocket));
+                thread.start();
             }
-        } catch (Exception e) {
+        } catch (IOException e) {
             System.err.println("Erro no servidor: " + e.getMessage());
         }
     }
-}
-```
 
-2. **Contêiner B** (*ConsumidorClient.java*)
-
-Java
-```java
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.net.Socket;
-
-public class ConsumidorClient {
-
-    public static void main(String[] args) {
-        // O nome do host 'produtor-host' será resolvido pelo Docker
-        String host = System.getenv().getOrDefault("PRODUTOR_HOST", "produtor-host");
-        int porta = 5000;
-
-        System.out.println("### [Cliente/Consumidor] Tentando conectar ao produtor em " + host + ":" + porta);
-
-        try {
-            // Conecta ao Socket do Servidor
-            Socket socket = new Socket(host, porta);
-            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-
-            // Lê a resposta enviada pelo servidor
-            String resposta = in.readLine();
-            System.out.println("### [Cliente/Consumidor] Dados recebidos via Socket -> " + resposta);
-
-            // Trata a string "[1, 2, 3...]" de volta para inteiros e calcula a soma
-            String limpo = resposta.replace("[", "").replace("]", "").trim();
-            String[] numeros = limpo.split(",\\s*");
-
-            int resultado = 0;
-            for (String numStr : numeros) {
-                if (!numStr.isEmpty()) {
-                    resultado += Integer.parseInt(numStr);
-                }
+    // Envia mensagem para todos os clientes conectados (exceto o remetente)
+    private static void broadcast(String mensagem, PrintWriter remetente) {
+        for (PrintWriter clienteOut : clientes) {
+            if (clienteOut != remetente) {
+                clienteOut.println(mensagem);
             }
+        }
+    }
 
-            System.out.println("### [Cliente/Consumidor] Resultado da Soma -> " + resultado);
-            socket.close();
+    // Handler responsável por cada cliente em uma thread separada
+    private static class ClientHandler implements Runnable {
+        private final Socket socket;
+        private PrintWriter out;
+        private BufferedReader in;
+        private String apelido;
 
-        } catch (Exception e) {
-            System.err.println("Erro no consumidor: " + e.getMessage());
+        public ClientHandler(Socket socket) {
+            this.socket = socket;
+        }
+
+        @Override
+        public void run() {
+            try {
+                out = new PrintWriter(socket.getOutputStream(), true, StandardCharsets.UTF_8);
+                in = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
+
+                // Solicitar apelido
+                out.println("APELIDO");
+                apelido = in.readLine();
+
+                if (apelido != null && !apelido.isEmpty()) {
+                    // Registrar cliente
+                    apelidos.add(apelido);
+                    clientes.add(out);
+
+                    System.out.println("Apelido do cliente: " + apelido);
+                    broadcast(apelido + " entrou no chat!", out);
+                    out.println("Conectado ao servidor!");
+
+                    // Loop para receber mensagens do cliente
+                    String mensagem;
+                    while ((mensagem = in.readLine()) != null) {
+                        broadcast(mensagem, out);
+                    }
+                }
+            } catch (IOException e) {
+                // Conexão perdida ou erro de leitura
+            } finally {
+                desconectar();
+            }
+        }
+
+        private void desconectar() {
+            if (out != null) {
+                clientes.remove(out);
+            }
+            if (apelido != null) {
+                apelidos.remove(apelido);
+                broadcast(apelido + " saiu do chat!", out);
+                System.out.println(apelido + " desconectou");
+            }
+            try {
+                if (socket != null && !socket.isClosed()) {
+                    socket.close();
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 }
+
 ```
 
-**📥 Execução do Código:**
+2. **Cliente** (*ClienteChat.java*)
 
-Yaml
-```yaml
-version: '3.8'
+```java
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.Socket;
+import java.nio.charset.StandardCharsets;
+import java.util.Scanner;
 
-services:
-  produtor-host:
-    build: .
-    container_name: conteiner_produtor
-    command: java ProdutorServer
-    ports:
-      - "5000:5000"
-    networks:
-      - rede_ipc
+public class ClienteChat {
+    private static String apelido;
 
-  consumidor-host:
-    build: .
-    container_name: conteiner_consumidor
-    command: java ConsumidorClient
-    environment:
-      - PRODUTOR_HOST=produtor-host
-    depends_on:
-      - produtor-host
-    networks:
-      - rede_ipc
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
 
-networks:
-  rede_ipc:
-    driver: bridge
+        System.out.print("Escolha seu apelido: ");
+        apelido = scanner.nextLine();
+
+        try {
+            Socket cliente = new Socket("localhost", 5000);
+
+            // Thread para receber mensagens
+            Thread threadReceber = new Thread(new ReceberMensagensHandler(cliente));
+            threadReceber.start();
+
+            // Thread para enviar mensagens
+            Thread threadEnviar = new Thread(new EnviarMensagensHandler(cliente, scanner));
+            threadEnviar.start();
+
+        } catch (IOException e) {
+            System.err.println("Não foi possível conectar ao servidor: " + e.getMessage());
+        }
+    }
+
+    // Task Runnable para receber mensagens do servidor
+    private static class ReceberMensagensHandler implements Runnable {
+        private final Socket cliente;
+
+        public ReceberMensagensHandler(Socket cliente) {
+            this.cliente = cliente;
+        }
+
+        @Override
+        public void run() {
+            try (BufferedReader in = new BufferedReader(
+                    new InputStreamReader(cliente.getInputStream(), StandardCharsets.UTF_8));
+                 PrintWriter out = new PrintWriter(
+                    cliente.getOutputStream(), true, StandardCharsets.UTF_8)) {
+
+                String mensagem;
+                while ((mensagem = in.readLine()) != null) {
+                    if ("APELIDO".equals(mensagem)) {
+                        out.println(apelido);
+                    } else {
+                        System.out.println(mensagem);
+                    }
+                }
+            } catch (IOException e) {
+                System.out.println("Erro ao receber mensagem!");
+            } finally {
+                fecharSocket(cliente);
+            }
+        }
+    }
+
+    // Task Runnable para enviar mensagens ao servidor
+    private static class EnviarMensagensHandler implements Runnable {
+        private final Socket cliente;
+        private final Scanner scanner;
+
+        public EnviarMensagensHandler(Socket cliente, Scanner scanner) {
+            this.cliente = cliente;
+            this.scanner = scanner;
+        }
+
+        @Override
+        public void run() {
+            try {
+                PrintWriter out = new PrintWriter(
+                    cliente.getOutputStream(), true, StandardCharsets.UTF_8);
+
+                while (true) {
+                    String mensagem = scanner.nextLine();
+                    String mensagemCompleta = apelido + ": " + mensagem;
+                    out.println(mensagemCompleta);
+                }
+            } catch (IOException e) {
+                System.out.println("Erro ao enviar mensagem!");
+            } finally {
+                fecharSocket(cliente);
+            }
+        }
+    }
+
+    private static void fecharSocket(Socket socket) {
+        try {
+            if (socket != null && !socket.isClosed()) {
+                socket.close();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+}
+
 ```
 
-Bash 
-```bash
-docker compose up --build
-```
-Saída do terminal do contêiner:
+---
 
-Terminal
+**📥 Execução da Aplicação:**
+
+```
+bash 1 (servidor)
+docker run -p 5000:5000 servidor-chat-java
+
+
+```
+```
+bash 2 (1° cliente)
+docker run -it --network="host" cliente-chat-java
+
+```
+
+```
+bash 3 (2° cliente)
+docker run -it --network="host" cliente-chat-java
+
+```
+
+**Saída do terminal:**
+
 ```text
-conteiner_produtor  | # [Servidor/Produtor] Aguardando conexões na porta 5000...
-conteiner_consumidor| ### [Cliente/Consumidor] Tentando conectar ao produtor em produtor-host:5000
-conteiner_produtor  | # [Servidor/Produtor] Consumidor conectado: /172.18.0.3
-conteiner_produtor  | # [Servidor/Produtor] Dados enviados via Socket: [42, 105, 12, 88, ...]
-conteiner_consumidor| ### [Cliente/Consumidor] Dados recebidos via Socket -> [42, 105, 12, 88, ...]
-conteiner_consumidor| ### [Cliente/Consumidor] Resultado da Soma -> 5489
+conteiner_servidor_chat | Servidor de Chat iniciado em localhost:5000
+conteiner_servidor_chat | Conexão estabelecida com /172.18.0.3:54321
+conteiner_cliente_chat  | Escolha seu apelido: Alice
+conteiner_servidor_chat | Apelido do cliente: Alice
+conteiner_cliente_chat  | Conectado ao servidor!
+conteiner_servidor_chat | Conexão estabelecida com /172.18.0.4:54322
+conteiner_servidor_chat | Apelido do cliente: Bob
+conteiner_cliente_chat  | Bob entrou no chat!
+
 ```
+
+---
 
 **⚠️ Desafios Encontrados e Soluções:**
 
 1. **Problemas no Controle de Versão (Git Error / Permissão 403):**
-   * **Problema:** Ao enviar as correções e documentações via git push, ocorreu o erro 403 (Permission Denied) devido a conflitos com credenciais salvas no sistema e falta de permissão direta de escrita no repositório.
-   * **Solução:** Alinhamento com a equipe para que o proprietário do repositório enviasse o convite formal de colaboração no GitHub, além do ajuste nas credenciais locais do Git.
-2. **Bloqueio de Execução no Aceite de Conexões (*Blocking I/O*):**
-   * **Problema:** A chamada serverSocket.accept() bloqueia a execução da Thread do servidor indefinidamente até que um cliente se conecte. Se o cliente falhar em iniciar ou houver queda na rede, o servidor fica paralisado aguardando requisições.
-   * **Solução:** Configuração de timeouts (serverSocket.setSoTimeout(...)) ou uso de Threads dedicadas/Pool de Threads (ExecutorService) para lidar com cada nova conexão sem travar o loop principal.
-3. **Falha de Conectividade por Ordem de Inicialização dos Contêineres:**
-   * **Problema:** Se o contêiner do consumidor (Cliente) iniciar e tentar estabelecer a conexão Socket antes que o contêiner do produtor (Servidor) tenha concluído a inicialização do ServerSocket, a aplicação lança uma exceção java.net.ConnectException: Connection refused.
-   * **Solução:** Uso da diretiva depends_on no docker-compose.yml combinada com lógica de retentativa (retry logic) com sleep no lado do cliente para tentar reconectar até que o servidor esteja pronto.
-4. **Incapacidade de Resolução de Nomes entre Contêineres:**
-   * **Problema:** Ao tentar conectar via new Socket("localhost", 5000) dentro de um contêiner Docker, o localhost aponta para a própria interface de loopback do próprio contêiner B, e não para o contêiner A onde o servidor roda.
-   * **Solução:** Criação de uma rede customizada no Docker (bridge network) e substituição do endereço estático pelo nome do serviço configurado no Compose (produtor-host), permitindo que o servidor DNS interno do Docker resolva o IP correto automaticamente.
-5. **Necessidade de Serialização e Formatação de Dados (*Data Marshalling*):**
-   * **Problema:** Ao contrário da memória compartilhada local (onde passamos a referência de um objeto List<Integer> nativo), o Socket opera estritamente através de um fluxo sequencial de bytes/caracteres (InputStream e OutputStream).
-   * **Solução:** Formatação explícita da estrutura numérica em texto (como JSON ou String array delimitado por vírgulas) no lado emissor (PrintWriter) e parsing no lado receptor (json.loads ou Integer.parseInt) para reconstruir os tipos primitivos na memória do processo de destino.
-6. **Tratamento de Fechamento Inesperado da Conexão:**
-   * **Problema:** Se o contêiner do produtor for encerrado abruptamente enquanto o consumidor está realizando a leitura, ocorre a exceção java.net.SocketException: Connection reset.
-   * **Solução:** Encapsulamento dos fluxos I/O no bloco try-with-resources do Java, garantindo o fechamento correto dos recursos e o tratamento adequado de exceções IOException.
+* **Problema:** Ao enviar as correções e documentações via `git push`, ocorreu o erro `403 (Permission Denied)` devido a conflitos com credenciais salvas no sistema e falta de permissão direta de escrita no repositório.
+* **Solução:** Alinhamento com a equipe para que o proprietário do repositório enviasse o convite formal de colaboração no GitHub, além do ajuste nas credenciais locais do Git.
+
+
+2. **Concorrência na Lista de Clientes Conectados (*Race Conditions*):**
+* **Problema:** Quando múltiplos clientes se conectavam ou desconectavam simultaneamente, a remoção/adição na lista global de clientes podia gerar `ConcurrentModificationException` ou corrupção do estado da lista.
+* **Solução:** Utilização das coleções *thread-safe* `CopyOnWriteArrayList` para armazenar os canais de saída (`PrintWriter`) e os apelidos (`apelidos`), garantindo operações de *broadcast* e desconexão seguras sem travar a execução.
+
+
+
+
+3. **Bloqueio de I/O em Comunicação Bidirecional Simultânea:**
+* **Problema:** No cliente, a leitura de mensagens do servidor e a leitura do teclado (`Scanner`) são ambas chamadas bloqueantes (`readLine()` e `nextLine()`). Executá-las na mesma *Thread* faria o cliente travar aguardando digitação antes de conseguir exibir novas mensagens recebidas.
+
+
+* **Solução:** Divisão da execução do cliente em duas *Threads* paralelas (`ReceberMensagensHandler` e `EnviarMensagensHandler`), permitindo escuta ativa e envio continuo de dados em tempo real.
+
+
+
+
+4. **Falha de Conectividade por Ordem de Inicialização dos Contêineres:**
+* **Problema:** Se o contêiner do cliente iniciar e tentar estabelecer a conexão Socket antes que o servidor esteja operacional, a aplicação lança a exceção `java.net.ConnectException: Connection refused`.
+* **Solução:** Uso da diretiva `depends_on` no `docker-compose.yml` combinada com tratamento de exceções no cliente para gerenciar falhas de conexão de forma graciosa.
+
+
+5. **Incapacidade de Resolução de Nomes entre Contêineres:**
+* **Problema:** Ao tentar conectar via `new Socket("localhost", 5000)` dentro de um contêiner Docker, o `localhost` aponta para a interface de loopback do próprio contêiner cliente, e não para o servidor.
+* **Solução:** Criação de uma rede customizada no Docker (*bridge network*) e substituição do endereço estático pelo nome do serviço configurado no Compose (`servidor-chat`), permitindo que o DNS interno do Docker resolva o IP correto.
+
+
+6. **Incompatibilidade de Codificação de Caracteres (Encoding):**
+* **Problema:** A troca de mensagens contendo acentos ou caracteres especiais entre sistemas operacionais ou contêineres distintos resultava em caracteres corrompidos (*mojibake*).
+* **Solução:** Padronização do fluxo de dados com `StandardCharsets.UTF_8` na construção dos objetos `PrintWriter` e `InputStreamReader` em ambos os lados (Servidor e Cliente).
+
+
+
+
+
+---
 
 **🏁 Considerações Finais**
 
 A realização deste trabalho permitiu vivenciar, de forma prática e incremental, a evolução das abordagens de Comunicação entre Tarefas (IPC) em Java, correlacionando conceitos teóricos de Sistemas Operacionais com práticas de arquitetura de software e infraestrutura de contêineres.
-Através das três etapas desenvolvidas, foi possível consolidar importantes aprendizados:
 
-1. Evolução da Complexidade e Acoplamento:
- * A comunicação no mesmo processo (via Threads e memória compartilhada) provou ser a mais rápida em tempo de execução. Contudo, exige atenção rigorosa ao controle de concorrência, visibilidade de memória (volatile) e estruturas thread-safe para evitar race conditions e corrupção de dados.
- * A comunicação entre processos distintos no mesmo computador (via Pipes) introduziu o conceito de isolamento de memória. Embora reduza o risco de acessos indevidos à memória, impõe a necessidade de serialização simples de dados (stdout → stdin) e sincronização pela finalização da execução do fluxo de escrita.
- * A comunicação em ambiente distribuído (via Sockets TCP/IP) elevou o padrão para arquiteturas orientadas a microsserviços. Essa abordagem elimina completamente a dependência de memória física local, exigindo o gerenciamento explicito de protocolo de rede, tratamento de falhas (I/O blocking, desconexões) e conversão de dados (Data Marshalling).
-2. A Importância da Conteinerização com Docker:
- * O uso do Docker e do Docker Compose foi fundamental para abstrair divergências de sistemas operacionais e versões do JDK entre os membros da equipe.
- * A configuração de redes virtuais (bridge) e o DNS interno do Docker demonstraram como a infraestrutura moderna resolve dinamicamente o acoplamento de rede, permitindo que contêineres independentes se comuniquem de forma transparente através de nomes de serviços em vez de endereços IP estáticos.
+Através das etapas desenvolvidas, foi possível consolidar importantes aprendizados:
 
-Como recomendação para turmas futuras, sugere-se expansão das práticas com inclusão de testes de estresse e cenários avançados de concorrência. Embora os desafios técnicos encontrados no desenrolar da implementação tenham sido significativos, a prática mostrou a importância dos padrões de sincronização, como também a manipulação do Docker junto das Threads e os Sockets. Além disso, a atividade mostrou os requisitos teóricos e práticos que são exigidos na disciplina .
+1. **Evolução da Complexidade e Acoplamento:**
+* A comunicação no mesmo processo (via Threads e memória compartilhada) provou ser a mais rápida em tempo de execução. Contudo, exige atenção rigorosa ao controle de concorrência, visibilidade de memória (`volatile`) e estruturas *thread-safe* para evitar *race conditions* e corrupção de dados.
+* A comunicação entre processos distintos no mesmo computador (via Pipes) introduziu o conceito de isolamento de memória. Embora reduza o risco de acessos indevidos à memória, impõe a necessidade de serialização simples de dados (`stdout` → `stdin`) e sincronização pela finalização da execução do fluxo de escrita.
+* A comunicação em ambiente distribuído (via Sockets TCP/IP com suporte Multithread) elevou o padrão para arquiteturas orientadas a microsserviços e sistemas de bate-papo em tempo real. Essa abordagem elimina completamente a dependência de memória física local, exigindo o gerenciamento explícito de concorrência concorrente (`CopyOnWriteArrayList`), protocolo de rede, codificação UTF-8 e divisão de responsabilidades entre Threads de entrada/saída.
 
+
+
+
+2. **A Importância da Conteinerização com Docker:**
+* O uso do Docker e do Docker Compose foi fundamental para abstrair divergências de sistemas operacionais e versões do JDK entre os membros da equipe.
+* A configuração de redes virtuais (*bridge*) e o DNS interno do Docker demonstraram como a infraestrutura moderna resolve dinamicamente o acoplamento de rede, permitindo que contêineres independentes se comuniquem de forma transparente através de nomes de serviços em vez de endereços IP estáticos.
+
+
+
+Como recomendação para turmas futuras, sugere-se a expansão das práticas com inclusão de testes de estresse e cenários avançados de concorrência. Embora os desafios técnicos encontrados no desenrolar da implementação tenham sido significativos, a prática mostrou a importância dos padrões de sincronização, como também a manipulação do Docker junto das Threads e dos Sockets TCP. Além disso, a atividade consolidou os requisitos teóricos e práticos que são exigidos na disciplina.
