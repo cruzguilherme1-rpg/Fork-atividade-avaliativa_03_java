@@ -1,19 +1,23 @@
-version: '3.8'
-
 services:
   produtor-host:
-    build: .
+    build: ./src/java/03-socket/
     container_name: conteiner_produtor
-    command: java ProdutorServer
+    working_dir: /app
+    volumes:
+      - ./src/java/03-socket:/app
+    command: sh -c "javac ProdutorServer.java && java ProdutorServer"
     ports:
       - "5000:5000"
     networks:
       - rede_ipc
 
   consumidor-host:
-    build: .
+    build: ./src/java/03-socket/
     container_name: conteiner_consumidor
-    command: java ConsumidorClient
+    working_dir: /app
+    volumes:
+      - ./src/java/03-socket:/app
+    command: sh -c "javac ConsumidorClient.java && java ConsumidorClient"
     environment:
       - PRODUTOR_HOST=produtor-host
     depends_on:
