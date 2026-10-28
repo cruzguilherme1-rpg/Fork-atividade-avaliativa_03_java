@@ -300,7 +300,6 @@ Entrada: Mais um teste
    * **Problema:** O Consumidor utiliza entrada.nextLine(), lendo apenas uma única linha. Se o Produtor emitisse múltiplas linhas ou streams contínuos, as linhas subsequentes seriam ignoradas.
    * **Solução:** Usar um laço de repetição (while (entrada.hasNextLine())) para consumir continuamente até o encerramento da saída do Produtor.
 
-Aqui está o texto reorganizado e atualizado para refletir com precisão a implementação dos códigos fornecidos (`ServidorChat.java` e `ClienteChat.java`), mantendo o rigor técnico, os desafios enfrentados e a conclusão.
 
 ---
 
