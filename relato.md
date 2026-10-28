@@ -538,26 +538,62 @@ public class ClienteChat {
 }
 
 ```
-
 ---
-
 **📥 Execução da Aplicação:**
+```
+services:
+  servidor-host:
+    build:
+      context: ./src/java/04-Socket_e_servidores/Servidor-java/ServidorChat
+      dockerfile: dockerfile
+    container_name: conteiner_server
+    working_dir: /app
+    volumes:
+      - ./src/java/04-Socket_e_servidores/Servidor-java/ServidorChat:/app
+    command: sh -c "javac ServidorChat.java  && java ServidorChat"
+    ports:
+      - "5000:5000"
+    networks:
+      - rede_ipc
+
+  cliente-host:
+    build: ./src/java/04-Socket_e_servidores/Cliente-java/ClienteChat
+    container_name: conteiner_cliente
+    working_dir: /app
+    volumes:
+      - ./src/java/04-Socket_e_servidores/Cliente-java/ClienteChat:/app
+    command: sh -c "javac ClienteChat.java && java ClienteChat"
+    environment:
+      SERVIDOR_HOST: host.docker.internal
+    depends_on:
+      - servidor-host
+    networks:
+      - rede_ipc
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    stdin_open: true
+    tty: true
+
+networks:
+  rede_ipc:
+    driver: bridge
+```
 
 ```
 bash 1 (servidor)
-docker run -p 5000:5000 servidor-chat-java
+docker compose up -d --build --force-recreate servidor-host
 
 
 ```
 ```
 bash 2 (1° cliente)
-docker run -it --network="host" cliente-chat-java
+docker compose run --rm -it --name cliente1 cliente-host
 
 ```
 
 ```
 bash 3 (2° cliente)
-docker run -it --network="host" cliente-chat-java
+docker compose run --rm -it --name cliente2 cliente-host
 
 ```
 
