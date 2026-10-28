@@ -31,12 +31,10 @@ public class ServidorChat {
         }
     }
 
-    // Envia mensagem para todos os clientes conectados (exceto o remetente)
-    private static void broadcast(String mensagem, PrintWriter remetente) {
+    // Envia mensagem para todos os clientes conectados
+    private static void broadcast(String mensagem) {
         for (PrintWriter clienteOut : clientes) {
-            if (clienteOut != remetente) {
-                clienteOut.println(mensagem);
-            }
+            clienteOut.println(mensagem);
         }
     }
 
@@ -67,13 +65,13 @@ public class ServidorChat {
                     clientes.add(out);
 
                     System.out.println("Apelido do cliente: " + apelido);
-                    broadcast(apelido + " entrou no chat!", out);
+                    broadcast(apelido + " entrou no chat!");
                     out.println("Conectado ao servidor!");
 
                     // Loop para receber mensagens do cliente
                     String mensagem;
                     while ((mensagem = in.readLine()) != null) {
-                        broadcast(mensagem, out);
+                        broadcast(mensagem);
                     }
                 }
             } catch (IOException e) {
@@ -89,7 +87,7 @@ public class ServidorChat {
             }
             if (apelido != null) {
                 apelidos.remove(apelido);
-                broadcast(apelido + " saiu do chat!", out);
+                broadcast(apelido + " saiu do chat!");
                 System.out.println(apelido + " desconectou");
             }
             try {

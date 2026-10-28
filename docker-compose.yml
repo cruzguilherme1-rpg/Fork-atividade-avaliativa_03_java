@@ -1,29 +1,39 @@
+# inicar: docker compose up -d --build --force-recreate servidor-host
+#cliente 1: docker compose run --rm -it --name cliente1 cliente-host
+#cliente 2: docker compose run --rm -it --name cliente2 cliente-host
+
 services:
-  produtor-host:
-    build: ./src/java/03-socket/
-    container_name: conteiner_produtor
+  servidor-host:
+    build:
+      context: ./src/java/04-Socket_e_servidores/Servidor-java/ServidorChat
+      dockerfile: dockerfile
+    container_name: conteiner_server
     working_dir: /app
     volumes:
-      - ./src/java/03-socket:/app
-    command: sh -c "javac ProdutorServer.java && java ProdutorServer"
+      - ./src/java/04-Socket_e_servidores/Servidor-java/ServidorChat:/app
+    command: sh -c "javac ServidorChat.java  && java ServidorChat"
     ports:
       - "5000:5000"
     networks:
       - rede_ipc
 
-  consumidor-host:
-    build: ./src/java/03-socket/
-    container_name: conteiner_consumidor
+  cliente-host:
+    build: ./src/java/04-Socket_e_servidores/Cliente-java/ClienteChat
+    container_name: conteiner_cliente
     working_dir: /app
     volumes:
-      - ./src/java/03-socket:/app
-    command: sh -c "javac ConsumidorClient.java && java ConsumidorClient"
+      - ./src/java/04-Socket_e_servidores/Cliente-java/ClienteChat:/app
+    command: sh -c "javac ClienteChat.java && java ClienteChat"
     environment:
-      - PRODUTOR_HOST=produtor-host
+      SERVIDOR_HOST: host.docker.internal
     depends_on:
-      - produtor-host
+      - servidor-host
     networks:
       - rede_ipc
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    stdin_open: true
+    tty: true
 
 networks:
   rede_ipc:

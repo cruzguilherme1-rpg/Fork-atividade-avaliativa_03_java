@@ -2,11 +2,16 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.Scanner;
+import java.util.concurrent.TimeUnit;
 
 public class ClienteChat {
+    private static final int PORTA_SERVIDOR = 5000;
+    private static final int TENTATIVAS_CONEXAO = 30;
+    private static final int TIMEOUT_CONEXAO_MS = 2000;
     private static String apelido;
 
     public static void main(String[] args) {
@@ -16,7 +21,7 @@ public class ClienteChat {
         apelido = scanner.nextLine();
 
         try {
-            Socket cliente = new Socket("localhost", 5000);
+            Socket cliente = conectarServidor();
 
             // Thread para receber mensagens
             Thread threadReceber = new Thread(new ReceberMensagensHandler(cliente));
@@ -29,6 +34,41 @@ public class ClienteChat {
         } catch (IOException e) {
             System.err.println("Não foi possível conectar ao servidor: " + e.getMessage());
         }
+    }
+
+    private static Socket conectarServidor() throws IOException {
+        String servidorHost = System.getenv().getOrDefault("SERVIDOR_HOST", "localhost");
+        IOException ultimoErro = null;
+
+        for (int tentativa = 1; tentativa <= TENTATIVAS_CONEXAO; tentativa++) {
+            Socket socket = new Socket();
+            try {
+                socket.connect(
+                        new InetSocketAddress(servidorHost, PORTA_SERVIDOR),
+                        TIMEOUT_CONEXAO_MS);
+                return socket;
+            } catch (IOException e) {
+                try {
+                    socket.close();
+                } catch (IOException closeError) {
+                    e.addSuppressed(closeError);
+                }
+                ultimoErro = e;
+                if (tentativa < TENTATIVAS_CONEXAO) {
+                    try {
+                        TimeUnit.SECONDS.sleep(1);
+                    } catch (InterruptedException interrupted) {
+                        Thread.currentThread().interrupt();
+                        throw new IOException("Interrompido ao aguardar o servidor.", interrupted);
+                    }
+                }
+            }
+        }
+
+        throw new IOException(
+                "Não foi possível conectar a " + servidorHost + ":" + PORTA_SERVIDOR
+                        + " após " + TENTATIVAS_CONEXAO + " tentativas.",
+                ultimoErro);
     }
 
     // Task Runnable para receber mensagens do servidor
@@ -55,7 +95,9 @@ public class ClienteChat {
                     }
                 }
             } catch (IOException e) {
-                System.out.println("Erro ao receber mensagem!");
+                if (!cliente.isClosed()) {
+                    System.out.println("Erro ao receber mensagem: " + e.getMessage());
+                }
             } finally {
                 fecharSocket(cliente);
             }
@@ -78,7 +120,7 @@ public class ClienteChat {
                 PrintWriter out = new PrintWriter(
                     cliente.getOutputStream(), true, StandardCharsets.UTF_8);
 
-                while (true) {
+                while (scanner.hasNextLine()) {
                     String mensagem = scanner.nextLine();
                     String mensagemCompleta = apelido + ": " + mensagem;
                     out.println(mensagemCompleta);
